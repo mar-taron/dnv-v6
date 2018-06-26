@@ -1,0 +1,853 @@
+<template>
+	<div class="container-fluid">
+      <div class="row">
+		<div class="wrapper single big_data">
+			<time-display></time-display>
+			<ol class="breadcrumb">
+				  <li class="breadcrumb-item"><a href="#">Statistics</a></li>
+				  <li class="breadcrumb-item active">Inbound/Outbound Report</li>
+			</ol>
+			<h1 class="page-header">Inbound / Outbound Report</h1>
+				<spinner v-show="loading" class="spinner"></spinner>
+				<div class="white_pad table_wrap">
+					<div class="advanced_search_filter_panel">
+						<div class="col-md-2 col-sm-4">
+							<label>Period:</label>
+							<select2 :options="period_options" v-model="time">
+								<option disabled value="0">Select one</option>
+							</select2>
+						</div>
+						<div class="col-md-4 col-sm-8">
+							<div class="inlined" >
+								<label for="start_date">Start Time:</label>
+								<el-date-picker style="width: 100%;" type="datetime" v-model="start_date" :picker-options="{}" placeholder="Enter Date and TIme"></el-date-picker>
+							</div>
+							<div class="inlined">
+								<label for="end-date">End Time:</label>
+								<el-date-picker style="width: 100%;" type="datetime" v-model="end_date" :picker-options="{}" placeholder="Enter Date and TIme"></el-date-picker>
+							</div>
+						</div>
+						<div class="col-md-6 col-sm-12 none-left-padding none-right-padding">
+							<div class="inlined">
+								<div class="col-md-4 col-sm-4 no-min-width">
+									<label>GMT:</label>
+									<select class="selectable" v-model="gmt">
+										<option v-for="item in gmt_options" v-bind:value="item.id">
+											{{ item.text }}
+										</option>
+									</select>
+								</div>
+								<div class="col-md-4 col-sm-4">
+									<label>By Hours:</label>
+									<select2 :options="by_hour_options" v-model="by_hours">
+										<option disabled value="0">Select one</option>
+									</select2>
+								</div>
+								<div class="col-md-4 col-sm-4">
+									<label>Web:</label>
+									<select2 :options="web_options" v-model="web">
+										<option disabled value="0">Select one</option>
+									</select2>
+								</div>
+							</div>
+							<div class="inlined">
+								<div class="col-md-4 col-sm-4">
+									<a class="btn btn-primary full-width m-top-20" v-on:click="searchReport()">
+										Query
+									</a>
+								</div>
+								<!--
+								<div class="col-md-4 col-sm-4">
+									<a class="btn btn-primary full-width m-top-20"  v-on:click="showAdvanced()">
+										{{more_advanced_option_button}}
+									</a>
+								</div> -->
+								<div class="clearfix"></div>
+							</div>
+						</div>
+						<div class="clearfix little-space"></div>
+						<div class = "inlined" v-show="more_advanced_option" >
+						<div class="col-md-6 col-sm-6">
+							<div class="white_pad less_pad">
+								<h1 class="page-header">Inbound</h1>
+								<div class="row">
+								<div class="col-md-6 first">
+									<label>Carriers:</label>				
+									<select class="selectable no-min-width" v-model="ingress_carrier" @change="changeIngress">
+										<option v-for="item in carrier_options" v-bind:value="item.id">
+											{{ item.text }}
+										</option>
+									</select>									
+								</div>
+								<div class="col-md-6 second">
+									<label>Ingress Trunk:</label>
+									<select class="selectable no-min-width" v-model="ingress_trunk">
+										<option v-for="item in ingress_trunk_options" v-bind:value="item.id">
+											{{ item.text }}
+										</option>
+									</select>
+								</div>
+								<div class="clearfix little-space"></div>								
+								<div class="col-md-6 first">
+									<label for="country">Country:</label>
+									<input type="text" name="country" v-model="country" class="form-control" placeholder="Enter Country">
+								</div>
+								<div class="col-md-6 second">
+									<label for="code_name">Origination ANI:</label>
+									<input type="text" name="origination_ani" v-model="ani" class="form-control" placeholder="Enter Origination ANI">
+								</div>	
+								<div class="clearfix little-space"></div>																
+								<div class="col-md-6 first">
+									<label for="code_name">Origination DNIS:</label>
+									<input type="text" name="origination_dnis" v-model="dnis" class="form-control" placeholder="Enter Origination DNIS">
+								</div>							
+								<div class="clearfix"></div>
+								</div>
+							</div>
+						</div>
+						<div class="col-md-6 col-sm-6">
+							<div class="white_pad less_pad">
+								<h1 class="page-header">Outbound</h1>
+								<div class="row">
+									<div class="col-md-6 first">
+										<label>Carriers:</label>
+										<select class="selectable no-min-width" v-model="egress_carrier" @change="changeEgress">
+											<option v-for="item in carrier_options" v-bind:value="item.id">
+												{{ item.text }}
+											</option>
+										</select>
+									</div>
+									<div class="col-md-6 second">
+										<label>Egress Trunk:</label>
+										<select class="selectable no-min-width" v-model="egress_trunk">
+											<option v-for="item in egress_trunk_options" v-bind:value="item.id">
+												{{ item.text }}
+											</option>
+										</select>
+									</div>								
+									<div class="clearfix"></div>								
+								</div>
+							</div>
+						</div>
+						<div class="clearfix"></div>
+						<div class="col-md-12 col-sm-12">
+							<div class="white_pad less_pad">
+								<div class="col-md-4 col-sm-6">
+									<div class="col-md-4 col-sm-5 m-top-10 group-label"><label class="m-top-10">Group by #1:</label></div>
+									<div class="col-md-8 col-sm-7 m-top-10 none-left-padding">
+										<select class="selectable no-min-width" v-model="group_by1">
+											<option v-for="item in group_options" v-bind:value="item.value">
+												{{ item.text }}
+											</option>
+										</select>										
+									</div>
+								</div>
+								<div class="col-md-4 col-sm-6">
+									<div class="col-md-4 col-sm-5 m-top-10 group-label"><label class="m-top-10">Group by #2:</label></div>
+									<div class="col-md-8 col-sm-7 m-top-10 none-left-padding">
+										<select class="selectable no-min-width" v-model="group_by2">
+											<option v-for="item in group_options" v-bind:value="item.value">
+												{{ item.text }}
+											</option>
+										</select>										
+									</div>
+								</div>
+								<div class="col-md-4 col-sm-6">
+									<div class="col-md-4 col-sm-5 m-top-10 group-label"><label class="m-top-10">Group by #3:</label></div>
+									<div class="col-md-8 col-sm-7 m-top-10 none-left-padding">
+										<select class="selectable no-min-width" v-model="group_by3">
+											<option v-for="item in group_options" v-bind:value="item.value">
+												{{ item.text }}
+											</option>
+										</select>										
+									</div>
+								</div>
+								<div class="col-md-4 col-sm-6">
+									<div class="col-md-4 col-sm-5 m-top-10 group-label"><label class="m-top-10">Group by #4:</label></div>
+									<div class="col-md-8 col-sm-7 m-top-10 none-left-padding">
+										<select class="selectable no-min-width" v-model="group_by4">
+											<option v-for="item in group_options" v-bind:value="item.value">
+												{{ item.text }}
+											</option>
+										</select>										
+									</div>
+								</div>
+								<div class="col-md-4 col-sm-6">
+									<div class="col-md-4 col-sm-5 m-top-10 group-label"><label class="m-top-10">Group by #5:</label></div>
+									<div class="col-md-8 col-sm-7 m-top-10 none-left-padding">
+										<select class="selectable no-min-width" v-model="group_by5">
+											<option v-for="item in group_options" v-bind:value="item.value">
+												{{ item.text }}
+											</option>
+										</select>										
+									</div>
+								</div>								
+								<div class="clearfix"></div>
+							</div>
+						</div>
+						<div class="clearfix"></div>
+						</div>
+					</div>
+					<div class="table_filters pull-right">
+						<!--<div class="inline-block select_min_wrapper">
+							<span class="inline-block">Page row:</span>
+							<select2 :options="page_rows" v-model="page_row_count" class="inline-block" @pagecount="changePageCount">
+							</select2>
+						</div>
+						<div class="inline-block">
+							<el-select v-model="plan_table_columns" multiple placeholder="Show/Hide Columns" @change="handleChange">
+								<el-option v-for="item in plan_table_column_options" :key="item.value" :label="item.label" :value="item.value">
+								</el-option>
+							</el-select>
+						</div>-->
+					</div>
+					<span class="table_time chart_time margin_0">
+						09/23/2016 17:34:52 +0000
+					</span>
+					<div class="clearfix"></div>
+					<div class="table-responsive">
+						<table class="table table-striped table-hover carrier_groups centrum">
+						  <thead>
+							<tr>
+								<th colspan="1" rowspan="2">Group Time</th>
+								<th colspan="3" rowspan="1">Inbound</th>
+								<th colspan="3" rowspan="1">Outbound</th>
+								<th colspan="2" rowspan="1">Profit</th>
+								<th colspan="1" rowspan="2">Total duration(min)</th>
+								<th colspan="1" rowspan="2">ASR</th>
+								<th colspan="1" rowspan="2">ACD(min)</th>
+								<th colspan="1" rowspan="2">PDD(ms)</th>
+								<th colspan="4" rowspan="1">Calls</th>
+							</tr>
+							<tr>
+								<th colspan="1" rowspan="1">Billed Time</th>
+								<th colspan="1" rowspan="1">Cost(USA)</th>
+								<th colspan="1" rowspan="1">AVG Rate(USA)</th>
+								<th colspan="1" rowspan="1">Biiled Time</th>
+								<th colspan="1" rowspan="1">Cost(USA)</th>
+								<th colspan="1" rowspan="1">AVG Rate(USA)</th>
+								<th colspan="1" rowspan="1">(USA)</th>
+								<th colspan="1" rowspan="1">%</th>
+								<th colspan="1" rowspan="1">Total</th>
+								<th colspan="1" rowspan="1">Not Zero</th>
+								<th colspan="1" rowspan="1">Success</th>
+								<th colspan="1" rowspan="1">Busy Calls</th></tr>
+							</thead>
+						  <tbody>		
+							<tr v-if="!searchResults.length">
+								<td style="text-align: center" colspan="20">No Data Found</td>
+							</tr>					  
+							<tr v-for="report in searchResults">
+							  <td>{{report.group_time}}</td>
+							  <td>{{report.ingress_billed_time}}</td>
+							  <td>{{report.ingress_cost}}</td>
+							  <td>{{report.inbound_avg_rate}}</td>
+							  <td>{{report.egress_billed_time}}</td>
+							  <td>{{report.egress_cost}}</td>
+							  <td>{{report.outbound_avg_rate}}</td>
+							  <td>{{report.profit}}</td>
+							  <td>{{report.profit_percent}}</td>
+							  <td>{{report.ingress_time}}</td>
+							  <td>{{report.asr}}</td>
+							  <td>{{report.acd}}</td>
+							  <td>{{report.pdd}}</td>
+							  <td>{{report.ingress_calls}}</td>
+							  <td>{{report.non_zero_calls}}</td>
+							  <td>{{report.ingress_success_calls}}</td>
+							  <td>{{report.ingress_busy_calls}}</td>
+							</tr>
+						  </tbody>
+						</table>
+					</div>
+					<div class="pull-right pagination">
+						<pagination :current-page="pageOne.currentPage"
+									:total-pages="pageOne.totalPages"
+									@page-changed="pageOneChanged">
+						</pagination>
+					</div>
+					<div class="clearfix"></div>
+				</div>
+		    </div>
+		</div>
+	  </div>
+	</div>
+</template>
+
+<script>   
+	const vSelect = require('vue!../main_components/select.vue'),
+		vSpinner = require('vue!../main_components/fadeloader.vue'),
+		Pagination = require('vue!../main_components/pagination.vue');
+		const api = require("../../api");
+		const	auth = require("../../auth");
+	module.exports = {
+		created: function(){			
+			this.fetchCarriers().then(() => {
+				this.searchReport();
+			}).catch(error => {
+				console.log(error);
+			});
+			// this.fetchAllTrunks('egress');
+			// this.fetchAllTrunks('ingress');	
+		},
+		components: {
+			'select2': vSelect,
+			'pagination': Pagination,
+			'spinner': vSpinner,
+		},
+		data: function(){
+            return {
+				codes:[],
+				pageOne: {
+					currentPage: 1,
+					totalPages: 10
+				},
+				route_types: [
+				  { id: 1, text: 'Fail to Next Host' },
+				  { id: 2, text: 'Fail to Next Trunk' },
+				  { id: 3, text: 'Stop' },
+			  	],
+				web: 'web',
+				web_options: [
+					{ id: 'web', text: 'Web' },
+					{ id: 'excel_csv', text: 'Excel CSV' },
+					{ id: 'email_when_done', text: 'Email when done' },
+					{ id: 'export_from_storage', text: 'Export from Storage' },
+				],				
+				gmt: 13,
+				gmt_options: [
+					{ id: 1, text: 'GMT -12:00' },
+					{ id: 2, text: 'GMT -11:00' },
+					{ id: 3, text: 'GMT -10:00' },
+					{ id: 4, text: 'GMT -9:00' },
+					{ id: 5, text: 'GMT -8:00' },
+					{ id: 6, text: 'GMT -7:00' },
+					{ id: 7, text: 'GMT -6:00' },
+					{ id: 8, text: 'GMT -5:00' },
+					{ id: 9, text: 'GMT -4:00' },
+					{ id: 10, text: 'GMT -3:00' },
+					{ id: 11, text: 'GMT -2:00' },
+					{ id: 12, text: 'GMT -1:00' },
+					{ id: 13, text: 'GMT +0:00' },
+					{ id: 14, text: 'GMT +1:00' },
+					{ id: 15, text: 'GMT +2:00' },
+					{ id: 16, text: 'GMT +3:00' },
+					{ id: 17, text: 'GMT +4:00' },
+					{ id: 18, text: 'GMT +5:00' },
+					{ id: 19, text: 'GMT +6:00' },
+					{ id: 20, text: 'GMT +7:00' },
+					{ id: 21, text: 'GMT +8:00' },
+					{ id: 22, text: 'GMT +9:00' },
+					{ id: 23, text: 'GMT +10:00' },
+					{ id: 24, text: 'GMT +11:00' },
+					{ id: 25, text: 'GMT +12:00' },
+				],
+				time: 'Custom',
+				period_options: [
+					{id: 'Custom', text: 'Custom'},
+					{id: 'Today', text: 'Today'},
+					{id: 'Yesterday', text: 'Yesterday'},
+					{id: 'Current week', text: 'Current week'},
+					{id: 'Previous week', text: 'Previous week'},
+					{id: 'Current month', text: 'Current month'},
+					{id: 'Previous month', text: 'Previous month'},
+				],
+				by_hours: 1,
+				by_hour_options: [
+					{ id: 1, text: 'All Time', value: 0 },
+					{ id: 2, text: 'By hours', value: 60 },
+					{ id: 3, text: 'By day', value: 1440 },
+					{ id: 4, text: 'By month', value: 43200 },
+					{ id: 5, text: 'By year', value: 525600 },
+				],
+				page_row_count: 1,
+				page_rows: [
+					{ id: 1, text: '10' },
+					{ id: 2, text: '20' },
+					{ id: 3, text: '30' },
+					{ id: 4, text: '50' },
+					{ id: 5, text: '100' }
+				],
+				group_by1: '',
+				group_by2: '',
+				group_by3: '',
+				group_by4: '',
+				group_by5: '',				
+				group_options: [
+				  { id: 1, value: 'orig_code', text: 'Orig Code' },
+				  { id: 2, value: 'ingress_id', text: 'Ingress ID' },
+				  { id: 3, value: 'egress_id', text: 'Egress ID' },				 
+				  { id: 4, value: 'source_number', text: 'ANI' },
+				  { id: 5, value: 'dest_number', text: 'DNIS' },				  
+				],
+				ani: '',
+				dnis: '',
+				plan_table_column_options: [{
+					value: 'Name',
+					label: 'Name'
+				}, {
+					value: 'Usage Count',
+					label: 'Usage Count'
+				}, {
+					value: 'Update at',
+					label: 'Update at'
+				}, {
+					value: 'Update by',
+					label: 'Update by'
+				}, {
+					value: 'Action',
+					label: 'Action'
+				}],
+				plan_table_columns: ['Name', 'Usage Count', 'Update at',
+					'Update by', 'Action'],
+				showcolumns: [true, true, true, true, true],
+				ingress_trunk: '',
+				egress_trunk: '',
+				carrier_options: [],
+				ingress_trunk_options: [],
+				egress_trunk_options: [],
+				egress_carrier: '',
+				ingress_carrier: '',
+
+				more_advanced_option: true,
+				more_advanced_option_button: "Less Options",
+				loading: false,			
+				search_field: ['ingress_billed_time', 'ingress_cost', 'egress_billed_time', 'egress_cost', 'ingress_time', 'pdd', 'ingress_calls', 'non_zero_calls', 
+								'ingress_success_calls','ingress_busy_calls'],
+				backupDatas: [],
+				searchResults: [],
+				rate_table: '',
+				period: '',
+				start_date: '',
+				end_date: '',								
+				all_time: '',				
+				code: '',							
+				country: '',			
+				selected1: '',
+				selected2: '',			
+				options: [
+				  { id: 1, value: 'carrier1', text: 'Carrier 1' },
+				  { id: 2, value: 'carrier2', text: 'Carrier 2' },
+				  { id: 3, value: 'carrier3', text: 'Carrier 3' },
+				  { id: 4, value: 'carrier4', text: 'Carrier 4' },
+				  { id: 5, value: 'carrier5', text: 'Carrier 5' }
+			    ],				
+			}
+		},
+		watch: {
+			'time': function() {
+				if(this.time == 'Custom')
+				{					
+					this.start_date == ""
+					this.end_date == ""
+				} else if(this.time == 'Today')
+				{
+					this.start_date = getStartTimeOfToday();
+					this.end_date = getEndTimeOfToday();
+				} else if(this.time == 'Yesterday')
+				{
+					this.start_date = getStartTimeOfYesterday();
+					this.end_date = getEndTimeOfYesterday();
+				} else if(this.time == 'Current week')
+				{
+					this.start_date = getStartTimeOfCurrentWeek();
+					this.end_date = getEndTimeOfCurrentWeek();
+				} else if(this.time == 'Previous week')
+				{
+					this.start_date = getStartTimeOfPreviousWeek();
+					this.end_date = getEndTimeOfPreviousWeek();
+				} else if(this.time == 'Current month')
+				{
+					this.start_date = getStartTimeOfCurrentMonth();
+					this.end_date = getEndTimeOfCurrentMonth();
+				} else if(this.time == 'Previous month')
+				{
+					this.start_date = getStartTimeOfPreviousMonth();
+					this.end_date = getEndTimeOfPreviousMonth();
+				} 
+			}
+		},
+		methods: {
+			fetchCodes(country) {
+				var per_page=1;
+				var url = api.getEndpointUrl() + "/v1/switch/code/list?per_page="+per_page+"&country=" + country
+				this.loading = true;
+
+				return new Promise((resolve, reject) => {
+					this.$http.get(url)
+					.then(response => {
+						const body = response.body
+						if (body.success) {
+							var codes = body.payload.items
+							this.loading = false;
+							per_page = body.payload.total;
+
+							url = api.getEndpointUrl() + "/v1/switch/code/list?per_page="+per_page+"&country=" + country
+							this.loading = true;
+							this.$http.get(url)
+							.then(response => {
+								const body = response.body
+								if (body.success) {
+
+										this.codes = body.payload.items
+								}
+								this.loading = false;
+								resolve();
+							})
+							.catch(error => {					
+								console.log(error);
+								this.loading = false;
+								reject(error);
+							})
+						}
+					})
+					.catch(error => {					
+						console.log(error);
+						this.loading = false;
+						reject(error);
+					})
+				});				
+			},
+			toggleTable(event) {
+				var element = event.currentTarget;
+				$(element).parents('tr').siblings('.collapse').toggleClass('in');
+			},
+			handleChange() {
+
+			},
+			changePageCount (countPerPage) {
+				if (countPerPage !== this.pageOne.cntpage) {
+					this.pageOne.cntpage = countPerPage
+					this.$nextTick(this.fetchPlans)
+				}
+			},
+			pageOneChanged (pageNum) {
+				this.pageOne.currentPage = pageNum
+			},
+			showAdvanced(){
+				if(this.more_advanced_option)
+				{
+					this.more_advanced_option = false;
+					this.more_advanced_option_button = "More Options";
+				}
+				else
+				{
+					this.more_advanced_option = true;
+					this.more_advanced_option_button = "Less Options";
+				}
+			},
+			calcValue: function(first, second, percent = 100)
+			{
+				var value = 0;
+				if(second == 0 || second == "") value = 0;
+				else value = first * percent / second;
+				if(isNaN(value)) value = 0;
+				else value = parseFloat(Math.round(value * 100) / 100).toFixed(2);
+				return value;
+			},			
+			makeDatas: function()
+			{						
+				if(this.backupDatas.length == 0) return;					
+				var displayArray = new Array();
+				for(var i = 0; i < this.backupDatas.length - 1; i++)
+				{						
+					var value = new Array();	
+					value["group_time"] = formatDateFromStamp(this.backupDatas[i]['time']);
+					for(var j = 0; j < this.search_field.length; j++)	
+					{											
+						value[this.search_field[j]] = this.backupDatas[i][this.search_field[j]];
+					}
+					value["inbound_avg_rate"] = this.calcValue(value["ingress_cost"], value["ingress_billed_time"]);
+					value["outbound_avg_rate"] = this.calcValue(value["egress_cost"], value["egress_billed_time"]);
+					value["profit"] = value["ingress_cost"] - value["egress_cost"];
+					value["profit_percent"] = this.calcValue(value["profit"], value["egress_cost"]);
+					value["asr"] = this.calcValue(value["non_zero_calls"], value["ingress_calls"]);
+					value["acd"] = this.calcValue(value["ingress_time"], value["non_zero_calls"], 1);
+					
+					displayArray[i] = value;
+				}				
+				this.searchResults = displayArray;				
+				this.loading = false;			
+			},
+			fetchReport: function(start_time, end_time, step, filterURL, field_ind = 0, method = 'total')
+			{								
+				this.loading = true;
+
+				var fields = '';
+				
+				this.search_field.forEach(function (field, i) {
+					fields += field + ",";
+				});
+				if (fields.length > 0)
+					fields = fields.substr(0, fields.length - 1);	
+										
+				var strURL = api.getReport_URL() + "?start_time=" + start_time + "&end_time=" + end_time + "&step=" + step + "&method=" + method + "&field=" + fields;
+				strURL += filterURL;
+				console.log(strURL);
+				this.$http.get(strURL)
+				.then(function(response) {
+					this.backupDatas = response.body.data;
+					this.makeDatas();
+				}, function(error) {					
+					console.log(error);
+					this.loading = false;
+				});			
+			},
+			searchReport: function(){
+				var start_time, end_time, step;													
+				if(this.start_date == ""){
+					start_time = new Date();
+				}	
+				else{
+					start_time = new Date(this.start_date);
+				}
+
+				if(this.end_date == ""){
+					end_time = new Date();
+				}	
+				else{
+					end_time = new Date(this.end_date);
+				} 		
+				
+				start_time = new Date(start_time + " GMT").getTime() / 1000;
+				end_time = new Date(end_time + " GMT").getTime() / 1000;
+
+				if(this.by_hours == 1)
+				{					
+					var diffMs = (end_time - start_time) * 1000;									
+					var diffDays = Math.floor(diffMs / 86400000); // days
+					var diffHrs = Math.floor((diffMs % 86400000) / 3600000); // hours
+					var diffMins = Math.round(((diffMs % 86400000) % 3600000) / 60000); // minutes		
+					step = diffDays * 1440 + diffHrs * 60;		
+					if(diffMins % 60 == 0)
+						step += diffMins;
+					else{
+						diffMins = diffMins - (diffMins % 60);
+					}				
+				}
+				else
+					step = this.by_hour_options[this.by_hours - 1].value; 
+
+				this.makeURL().then(filterURL => {
+					this.searchResults = [];
+					if(step != 0)																
+						this.fetchReport(start_time, end_time, step, filterURL);	
+				}).catch(error => {
+					console.log(error);
+				});
+			},
+			makeURL: function(){
+				var filterURL = '';
+				if(this.ingress_carrier != undefined && this.ingress_carrier != '')
+				{
+					if(this.ingress_trunk != undefined && this.ingress_trunk != '')
+					{
+						filterURL += "&ingress_id=" + this.ingress_trunk;						
+					}
+					else if(this.ingress_trunk_options.length != 0)
+					{
+						var ingress_ids = '';
+						this.ingress_trunk_options.forEach(function (ingress, i) {
+							if(i == 0)
+								ingress_ids += ingress.id;
+							else	
+								ingress_ids += "," + ingress.id;
+						});		
+						filterURL += "&ingress_id=" + ingress_ids;				
+					}					
+				}
+				if(this.ani != '')
+					filterURL += "&source_number=" + this.ani;
+				if(this.dnis != '')				
+					filterURL += "&dest_number=" + this.dnis;				
+				if(this.egress_carrier != undefined && this.egress_carrier != '')
+				{
+					if(this.egress_trunk != undefined && this.egress_trunk != '')
+					{
+						filterURL += "&egress_id=" + this.egress_trunk;						
+					}
+					else if(this.egress_trunk_options.length != 0)
+					{
+						var egress_ids = '';
+						this.egress_trunk_options.forEach(function (egress, i) {
+							if(i == 0)
+								egress_ids += egress.id;
+							else	
+								egress_ids += "," + egress.id;
+						});		
+						filterURL += "&egress_id=" + egress_ids;				
+					}					
+				}
+							
+				var group_bys = '';
+				if (this.group_by1 != '')
+					group_bys += this.group_by1 + ',';
+				if (this.group_by2 != '')
+					group_bys += this.group_by2 + ',';
+				if (this.group_by3 != '')
+					group_bys += this.group_by3 + ',';
+				if (this.group_by4 != '')
+					group_bys += this.group_by4 + ',';
+				if (this.group_by5 != '')
+					group_bys += this.group_by5 + ',';
+				if (group_bys.length > 0) {
+					group_bys = group_bys.substr(0, group_bys.length - 1);
+					filterURL += "&group=" + group_bys;
+				}
+
+				return new Promise((resolve, reject) => {
+					let promise;
+					var codes_options;
+					if(this.active_tab_index == 0) {
+						this.codes_org = [];
+					}
+					else {
+						this.codes_term = [];
+					}
+
+					if(this.country != '')
+					{
+						promise = this.fetchCodes(this.country);
+					} else {
+						promise = Promise.resolve();
+					}
+					promise.then(() => {
+						if(this.active_tab_index == 0) {
+							codes_options = this.codes_org;
+						}
+						else {
+							codes_options = this.codes_term;
+						}
+						var codes = '';
+						codes_options.forEach(function (code, i) {
+							codes += code.code + ",";
+						});
+						if (codes.length > 0) {
+							codes = codes.substr(0, codes.length - 1);
+							filterURL += "&orig_code=" + codes;
+						}
+
+						resolve(filterURL);
+					}).catch(error => {
+						console.log(error);
+						reject(error);
+					});	
+				});
+			},
+			changeEgress() {
+				this.fetchRelatedTrunks('egress');
+			},
+			changeIngress() {
+				this.fetchRelatedTrunks('ingress');
+			},	
+			
+			fetchRelatedTrunks (type) {				
+				var url;
+				if(type == 'egress')
+				{
+					if(this.egress_carrier == undefined || this.egress_carrier == '') return;
+					this.egress_trunk = '';
+					url = api.getEndpointUrl() + '/v1/carrier/' + this.egress_carrier + '/egress_trunk/list';
+				}
+				else if(type == 'ingress')
+				{
+					if(this.ingress_carrier == undefined || this.ingress_carrier == '') return;
+					this.ingress_trunk = '';
+					url = api.getEndpointUrl() + '/v1/carrier/' + this.ingress_carrier + '/ingress_trunk/list';
+				}	
+				this.loading = true;
+				this.$http.get(url,
+				{
+					headers: {
+						"X-Auth-Token": auth.getToken()
+					}
+				}).then(response => {
+					const body = response.body
+					if (body.success) {
+						const trunks = body.payload.items
+						
+						var self = this;
+						if(type == 'egress') {
+							this.egress_trunk_options = [];
+							trunks.forEach(function (temp, i) {
+								var trunk = {};
+								trunk.id = temp.resource_id;
+								trunk.text = temp.name;
+								self.egress_trunk_options.push(trunk);
+							});
+							//console.log("Egress: " + this.egress_trunk_options.length);
+						}
+						else if(type == 'ingress') {
+							this.ingress_trunk_options = [];
+							trunks.forEach(function (temp, i) {
+								var trunk = {};
+								trunk.id = temp.resource_id;
+								trunk.text = temp.name;
+								self.ingress_trunk_options.push(trunk);
+							});
+							//console.log("Inress: " + this.ingress_trunk_options.length);
+						}
+						this.loading = false;
+						console.log("Fetch releated trunks success");
+					}
+				})
+				.catch(error => {					
+					// console.log("Fetch releated trunks failure");
+					console.log(error);
+					this.loading = false;
+				})
+			},
+			fetchCarriers() {
+				var per_page=1;
+				var url = api.getEndpointUrl() + "/v1/carrier/list?per_page="+per_page
+				this.loading = true;
+
+				return new Promise((resolve, reject) => {
+					this.$http.get(url)
+					.then(response => {
+						const body = response.body
+						if (body.success) {
+							var codes = body.payload.items
+							this.loading = false;
+							per_page = body.payload.total;
+
+							url = api.getEndpointUrl() + "/v1/carrier/list?per_page="+per_page
+							this.loading = true;
+							this.$http.get(url)
+							.then(response => {
+								const body = response.body
+								if (body.success) {
+									var self = this;
+									var carriers = body.payload.items
+
+									this.carrier_options.push({id: '', text: ''});
+									carriers.forEach(function (temp, i) {
+										var carrier = {};
+										carrier.id = temp.client_id;
+										carrier.text = temp.name;
+										self.carrier_options.push(carrier);
+									});
+								}
+								this.loading = false;
+								resolve();
+							})
+							.catch(error => {					
+								console.log(error);
+								this.loading = false;
+								reject(error);
+							})
+						}
+					})
+					.catch(error => {					
+						console.log(error);
+						this.loading = false;
+						reject(error);
+					})
+				});
+			},
+
+		}
+	}
+</script>
+
+<style>
+</style>
